@@ -29,6 +29,16 @@ This guide writes `wildshard <verb>`. `wildshard --help` lists every verb;
 run `pnpm install` in the new project, then `pnpm exec wildshard <verb>` to use the copy it pins.
 Add npm packages of your own with `pnpm add <name>`.
 
+**The six packages.** `new` pins `@wildshard/cli` (the `wildshard` command) and `@wildshard/sdk` (what your source
+imports); the cli brings `@wildshard/build` and `@wildshard/upload` (both engine-free) and `@wildshard/dev` (the local
+game, `check`, `prove`, `watch`: the only one with the engine). `@wildshard/kit` holds shared creatures. All six share
+one version.
+
+**Install size.** A fresh `new` repo installs about 580 MB into `node_modules` (`du -sh`, cli 0.4.11 with engine
+0.1.44, measured 2026-11-18). pnpm hard-links it from its global store, so a second repo on the same sdk adds little.
+The largest parts are binaryen, the script compiler (two copies, about 200 MB), the engine (about 50 MB), then
+TypeScript, three, kit, happy-dom, sharp and rolldown (12 to 23 MB each). The first build adds about 20 MB in `public/`.
+
 Run `wildshard memory <folder>` on a built shard folder to measure its phone-tier boot with the installed engine.
 The command prints the process peak, the phone estimate and the verdict. It exits 1 above the 1.5 GB phone limit.
 
@@ -54,7 +64,7 @@ repo's one `src/shards/<slug>/`).
 
 | # | Step | Command | Today |
 |---|---|---|---|
-| 1 | Start | `wildshard new my-shard`, or `wildshard new my-shard --template scene` for a shard written as a three.js scene (section 2b) | Works, and prints the folder it made and what to run next. Writes a shard repo in `my-shard/`: the Template (Mossgate's gameplay on a three.js scene module, `src/generators/scene.ts`; `pnpm watch` shows each save) as its shard source at `src/`, plus `package.json`, `tsconfig.json`, `.gitignore`, `.npmrc`, a README, this guide, the four `wildshard` skills and the agent files (`AGENTS.md`, `CLAUDE.md`, `.agents/skills/`) |
+| 1 | Start | `wildshard new my-shard` | Works, and prints the folder it made and what to run next. Writes a shard repo in `my-shard/`: Mossgate Hollow as one three.js scene module (`src/generators/world.ts`; its braziers, gates, lever, chest, rack and lift in `src/generators/play.ts`; its quests and two talks in `src/generators/quests.ts` and `gameplay.ts`; its proof tape `src/proof.json`; `pnpm watch` shows each save; section 2b) as its shard source at `src/`, plus `package.json`, `tsconfig.json`, `.gitignore`, `.npmrc`, a README, this guide, the four `wildshard` skills and the agent files (`AGENTS.md`, `CLAUDE.md`, `.agents/skills/`) |
 | 2 | Walk it | `wildshard dev .` | Works. The first run fetches engine's dev client once. See "Walking your shard" below |
 | 3 | Check | `wildshard check .` | Works: lint, build, validate, prove and the report card, one verdict |
 | 4 | Hero | `wildshard hero . --base <url>` | Works, with `wildshard dev .` running: `<url>` is the one it prints. See "The hero" below |
@@ -72,7 +82,7 @@ with `rule`, `fix` and `guide`) for agents and scripts.
 
 | Verb | What it is for |
 |---|---|
-| `wildshard new <dir> [slug] [--template sdk\|scene] [--empty]` | Start a shard repo in a folder that does not exist yet, its shard source at `src/`. The slug is the folder's name unless you give one. It copies the Template (`--template sdk`, the default: a three.js scene module, `src/generators/scene.ts`, with its gameplay rows under `src/data/`; `wildshard watch .` shows each save), or Mossgate Hollow as one three.js scene module (`--template scene`: `src/generators/world.ts` is the whole world, and `wildshard watch .` shows each save); any other template refuses before writing, and `--template blender` is retired (below). `--empty` writes a bare shard source instead of the reference world |
+| `wildshard new <dir> [slug] [--template scene] [--empty]` | Start a shard repo in a folder that does not exist yet, its shard source at `src/`. The slug is the folder's name unless you give one. It copies Mossgate Hollow as one three.js scene module (`--template scene`, the default: `src/generators/world.ts` is the world, `play.ts` what the player uses in it, `quests.ts` and `gameplay.ts` its quests, talks and rack, `src/proof.json` the tape `check` plays, and `wildshard watch .` shows each save); any other template refuses before writing, and `--template sdk` and `--template blender` are retired (below). `--empty` writes a bare shard source instead of the reference world |
 | `wildshard update [dir] [--pins[=<version>]]` | Rewrite this guide and the four `wildshard` skills from the installed sdk. `--pins` first moves the repo to a newer sdk release (npm's latest, or `--pins=<version>`), installs it and applies its codemods, and runs `check` after (section 7) |
 | `wildshard dev <source>` | Serve the shard source on localhost and rebuild on every save (section 4). The first run fetches engine's dev client once ("Walking your shard") |
 | `wildshard watch <source>` | For a shard written as a three.js scene (`@wildshard/sdk/scene/shard`): serve it once, then swap each edited part into the running page in about a second, no reload. A look, ground or spawn edit still reloads. A repo `new` made runs it as `pnpm watch` |
@@ -459,8 +469,8 @@ scripts) and [`PLATFORM-FILE-FAMILIES.md`](https://github.com/project-wildshard/
 
 ## 2b. A scene shard
 
-A shard can also be one three.js scene, written in TypeScript: `wildshard new my-shard --template scene` makes one
-(Mossgate Hollow, under your slug). It is the same shard format as section 2; only the source is shorter. It needs no
+A shard can also be one three.js scene, written in TypeScript: `wildshard new my-shard` makes one (Mossgate Hollow,
+under your slug; J434 made it the starter). It is the same shard format as section 2; only the source is shorter. It needs no
 `data/card.json` and no `data/` rows: `defineShard` takes the slug and name, the scene builds the world, and build
 writes the rest. `wildshard check .` builds it, `wildshard watch .` shows each saved edit in a running page, and
 `wildshard synth` is not for it (synth takes the older scene form only).
@@ -521,14 +531,225 @@ side, as `h = lerp(h, 0, smooth(186, 197, r) * (1 - smooth(9, 18, Math.min(Math.
 | `world.pickup(id, at, { label, radius, item: { id: 'tool.<name>', name, colour?, intensity?, fuelSeconds? }, flag? })` | A lantern on a stand: using its prompt puts the tool in the player's kit lit and full, and raises `flag`; a later use refills it. The sdk writes the tool, the take and the fields that show its light. Two pickups may hand over one tool (same options). Needs an engine with SHARD-SOURCE SS-GF1a1a |
 | `world.detail(id, instancedMesh, { cell, radius })` | Grass and small clutter the engine scatters near the camera |
 | `world.spawnAt(id, object, { species, variant, brain, strike, seed, scale, rank?, count?, when? })` | A creature spawn row (`creatures.spawns`) at `object`'s world position, facing its +z; a boss is a spawn its encounter names by `id` |
-| `world.creature(id, group, { species, size, scale?, skeleton?, volumes?, lock?, hits?, clips?, loops, material, materials?, family?, sockets?, attackSpan? })` | A whole creature from a `Group` of named bone nodes built outside `world.scene`: its skinned GLB rig (each mesh rides its nearest bone, `clips` kept), its skin in the library, and the species row `id` and look `<id>.look`; 64 bones at most, at most 32 `sockets` (default every bone). Place it with `world.spawnAt(…, { species: id, … })`; `wildshard content` lists its bones and triangles |
+| `world.creature(id, group, { species, size, scale?, skeleton?, volumes?, lock?, hits?, clips?, loops, material, materials?, family?, sockets?, attackSpan?, strikes? })` | A whole creature from a `Group` of named bone nodes built outside `world.scene`: its skinned GLB rig (each mesh rides its nearest bone, `clips` kept; one skinned mesh, a primitive per material, at most 8 materials), its skin in the library, the species row `id` and look `<id>.look`, and `strikes`, the strike rows its abilities name; 64 bones at most, at most 32 `sockets` (default every bone). Place it with `world.spawnAt(…, { species: id, … })`. The build also writes its phone mesh (half the vertices within 1% of its radius; the shard file option `creaturePhone` tunes it, `false` skips it), which the phone tier draws from the same clips; `wildshard content` lists its bones and both triangle counts |
 
 From `@wildshard/sdk/scene/author`: `solid` (collides), `paint` (a texture from a function), `Water` (a water
 surface), and `animate` with `flicker`, `pulse`, `drift`, `rise`, `sway` and `uvScroll`.
 
 **Items and quests.** Every player starts with the Template's iron sword (`weapon.sword-iron`), so a scene shard
 needs no item rows to fight. To add quests, items or any other section, pass `{ extend: (shard) => ({ ...shard,
-quests: ... }) }` as `defineShard`'s third argument; `wildshard schema list` names every section and its shape.
+quests: ... }) }` as `defineShard`'s third argument; `wildshard schema list` names every section and its shape. An NPC
+with a quest and loot, every row and how they connect, is worked through below (*An NPC with a quest and loot*).
+
+**A creature, from rows to a kill.** A scene shard's creature is one `world.creature` call (its body, skin, species
+row, look row and the strike rows its abilities name) and a `world.spawnAt` per creature. Jackal
+Den has two jackals that bite; the whole `src/shard.config.ts` (`src/sharddev/guide/scene-creature.example.ts` in the
+sdk, built by its tests):
+
+```ts
+// Jackal Den: a scene shard with a creature, from rows to a kill. `world.creature` turns a Group of named bones into
+// the jackal's skinned body, its skin, its species and look rows, and the bite its ability names; `world.spawnAt`
+// places two. Every player holds the starter sword, so the jackals can be fought and killed.
+import * as THREE from 'three';
+import { abilities, temperament } from '@wildshard/kit';
+import { defineShard } from '@wildshard/sdk/scene/shard';
+
+const bite = abilities.bite({ id: 'jackal.bite', damage: 9, range: 1.6 });
+const { temperament: pursue, senses } = temperament.pursue({ aggro: 16, leash: 30 });
+
+/** The jackal's body: a `body` bone carrying a `head` and a `tail` bone, a box on each (each mesh rides its bone). */
+function jackalBody(): THREE.Group {
+  const fur = new THREE.MeshStandardMaterial({ color: '#b08850' });
+  const root = new THREE.Group(), body = new THREE.Group(), head = new THREE.Group(), tail = new THREE.Group();
+  body.name = 'body'; head.name = 'head'; tail.name = 'tail';
+  body.position.set(0, 0.5, 0); head.position.set(0, 0.1, 0.5); tail.position.set(0, 0.05, -0.45);
+  body.add(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.9), fur), head, tail);
+  head.add(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.2, 0.3), fur));
+  tail.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.35), fur));
+  root.add(body);
+  return root;
+}
+
+/** A one-second clip that dips the head by `angle` radians and back: idle, walk and the bite's lunge. */
+function nod(name: string, angle: number): THREE.AnimationClip {
+  const dip = [Math.sin(angle / 2), 0, 0, Math.cos(angle / 2)];
+  return new THREE.AnimationClip(name, 1, [new THREE.QuaternionKeyframeTrack('head.quaternion', [0, 0.5, 1], [0, 0, 0, 1, ...dip, 0, 0, 0, 1])]);
+}
+
+export default defineShard({ slug: 'jackal-den', name: 'Jackal Den' }, (world) => {
+  world.ground(() => 0, { colourAt: () => [0.7, 0.6, 0.4] });
+  world.spawn(0, 1, 10, 0);
+  world.creature('jackal', jackalBody(), {
+    species: {
+      kind: 'jackal', label: 'Dune jackal', type: 'beast', aggressive: true, lockable: true,
+      dims: { bodyY: 0.5, bodyHalfLen: 0.45, bodyRadius: 0.22, headRadius: 0.12, legLen: 0.42, feet: [], halfWidth: 0.18 },
+      variants: [{ id: 'tawny', label: 'Tawny jackal', rarity: 'common', weight: 1, scale: [0.9, 1.1], hp: 40,
+        mods: { speed: 1, chargeDist: 1, damageTaken: 1, chargeDamage: 0, relentless: false } }],
+      temperament: pursue, senses, abilities: [bite.ability],
+    },
+    strikes: [bite.strike],
+    size: 'small',
+    clips: [nod('idle', 0.1), nod('walk', 0.3), nod('attack', 0.6)],
+    loops: ['idle', 'walk'],
+    material: { family: 'pbr', vertexColours: true },
+  });
+  // a spawn faces its marker's +z: these two face the player, 22 m north of them
+  for (const [index, x] of [-4, 4].entries()) {
+    const den = new THREE.Object3D();
+    den.position.set(x, 0, -12);
+    world.scene.add(den);
+    world.spawnAt(`jackal-${index + 1}`, den, { species: 'jackal', variant: 'tawny', brain: null, strike: null, seed: index + 1, scale: 1 });
+  }
+});
+```
+
+- **The body** is a `Group` of named bone nodes (`body`, `head`, `tail`; every creature has a `body` and a `head`),
+  built outside `world.scene`, each mesh on its bone. `clips` animate the bones by name: `idle`, `walk` and `attack`
+  play from the creature's state; `loops` are the ones that repeat. A kit skeleton (`skeleton: 'quadruped'`) instead
+  takes the kit's bones and default hit volumes.
+- **The species row** is section 2c's, without `id` and `body`: `world.creature` writes those (its id, its size and
+  the look `jackal.look`). `abilities` name strikes by id; pass those strike rows as `strikes` and they go in
+  `rows.strikes` (two creatures may pass the same row). The kit's `abilities.bite` makes both halves.
+- **The spawns** are `creatures.spawns` rows: `brain: null` and `strike: null` keep the species' own temperament and
+  abilities; `variant` is one of its variants.
+- **The kill.** Every player holds the starter sword. Prove the fight with a walk proof (section 1, *Walk proofs*),
+  `proof/jackals.walk.mjs`:
+
+```js
+// Jackal Den: kill both jackals, then read the server's kill count.
+export default async function jackals({ fight, state }) {
+  await fight('jackal');               // the species kind: swings until no jackal is alive
+  const { kills } = await state();
+  if (kills < 2) throw new Error(`two jackals, but the server counts ${kills} kills`);
+}
+```
+
+  Run `wildshard dev .`, then `wildshard prove . proof/jackals.walk.mjs --base <the URL dev printed>`. A quest that
+  waits on the kill reads it the same way: a `kill` objective on species `jackal`, added through `extend`
+  (`wildshard schema shardfile /quests`).
+
+**An NPC with a quest and loot.** An NPC is a talk (`targets.talks`: where it stands, how near the player must be,
+its prompt) that opens a dialogue tree (`quests.dialogue`). A quest (`quests.quests`), a trigger (`quests.triggers`),
+the item catalogue (`items.catalogue`) and a loot table (`rows.loot`) go in through `extend`. They connect by name:
+choices, triggers and quest steps read and set flags, and every flag is declared once in `quests.flags`. Wren's Hives
+is the whole `src/shard.config.ts` (`src/sharddev/guide/npc-quest.example.ts` in the sdk, built by its tests):
+
+```ts
+// Wren's Hives: an NPC with a quest and loot, and how their rows connect. Everything joins on flag names: Wren's
+// `accept` choice sets `wren.met`, which starts the quest; the badger's death trigger sets `wren.badger-dead`, which
+// finishes its first step and opens her turn-in choice; that choice sets `wren.returned`, which finishes the quest. The
+// quest pays coins, and each badger kill rolls a honeycomb off the shard's loot table (an item its catalogue names).
+import * as THREE from 'three';
+import { abilities, temperament } from '@wildshard/kit';
+import type { Shardfile } from '@wildshard/format/shardSchema';
+import { defineShard } from '@wildshard/sdk/scene/shard';
+
+const WREN_AT = [-6, 0, 4] as const;
+const bite = abilities.bite({ id: 'badger.bite', damage: 6, range: 1.4 });
+const { temperament: pursue, senses } = temperament.pursue({ aggro: 12, leash: 24 });
+
+// 1. Flags: every name a choice, trigger or quest reads or sets is declared once here.
+const flags = ['wren.met', 'wren.badger-dead', 'wren.returned', 'wren.done'];
+
+// 2. The NPC is a talk (`targets.talks`, below) that opens this dialogue tree. A choice shows while its `when` holds
+//    and sets its `sets` flags; `next: null` ends the talk.
+const wren = { id: 'wren', name: 'Wren the beekeeper', start: 'hello', nodes: [
+  { id: 'hello', lines: ['A honey badger is in my hives. Drive it off and I will pay you.'], choices: [
+    { id: 'accept', label: 'I will help.', next: 'waiting', when: { none: ['wren.met'] }, sets: ['wren.met'] }] },
+  { id: 'waiting', lines: ['The badger digs by the hives, north of here.'], choices: [
+    { id: 'turn-in', label: 'The badger is gone.', next: null, when: { all: ['wren.badger-dead'] }, sets: ['wren.returned'] }] },
+] };
+
+// 3. The quest starts when `startWhen` holds; each step is done when its flags are; `completeFlag` is raised at the
+//    end, and `onComplete` pays the coins and files the fact a proof tape's `requiredFacts` names.
+const quest = { id: 'honey-badger', title: 'The honey badger', track: true, completeFlag: 'wren.done', startWhen: { all: ['wren.met'] },
+  steps: [
+    { id: 'badger', objective: 'Drive the badger from the hives.', done: { all: ['wren.badger-dead'] } },
+    { id: 'return', objective: 'Tell Wren the badger is gone.', done: { all: ['wren.returned'] } },
+  ],
+  onComplete: { fact: 'wren.paid', coins: 10 } };
+
+// 4. A death trigger raises its flag when a creature carrying `tag` dies: every creature carries `creature.<kind>`.
+const badgerDead: Shardfile['quests']['triggers'][number] = { id: 'badger-dead', kind: 'death', flag: 'wren.badger-dead', tag: 'creature.badger' };
+
+// 5. Loot: a `trophies` table rolls items on each kill, matched by the creature's `kind`; a `coins` table would pay
+//    coins the same way. The rest of the economy row is empty: no effects, goods, grants, finds or map marks.
+const loot: Shardfile['rows']['loot'][number] = { id: 'wren.loot', gear: 'purse.coins', finds: null, marks: null, charted: false, chime: 'coin',
+  economy: {
+    tables: [{ id: 'badger.trophies', domain: 'trophies', table: { mode: 'weighted', rows: [{ item: 'honeycomb', weight: 1, count: 1, match: { kind: 'badger' } }] } }],
+    effects: [], goods: [], grants: { player: [], worn: [], weapons: [] }, finds: { counters: [], sections: [] }, marks: [],
+  } };
+
+/** The badger: a `body` bone carrying a `head` bone, a box on each. */
+function badgerBody(): THREE.Group {
+  const fur = new THREE.MeshStandardMaterial({ color: '#4a4440' });
+  const root = new THREE.Group(), body = new THREE.Group(), head = new THREE.Group();
+  body.name = 'body'; head.name = 'head';
+  body.position.set(0, 0.3, 0); head.position.set(0, 0.05, 0.4);
+  body.add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.25, 0.7), fur), head);
+  head.add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.25), fur));
+  root.add(body);
+  return root;
+}
+
+/** A one-second clip that dips the head by `angle` radians and back. */
+function nod(name: string, angle: number): THREE.AnimationClip {
+  const dip = [Math.sin(angle / 2), 0, 0, Math.cos(angle / 2)];
+  return new THREE.AnimationClip(name, 1, [new THREE.QuaternionKeyframeTrack('head.quaternion', [0, 0.5, 1], [0, 0, 0, 1, ...dip, 0, 0, 0, 1])]);
+}
+
+export default defineShard({ slug: 'wrens-hives', name: "Wren's Hives" }, (world) => {
+  world.ground(() => 0, { colourAt: () => [0.45, 0.6, 0.3] });
+  world.spawn(0, 1, 10, 0);
+  // Wren's body is an ordinary part; the talk below stands at her feet
+  world.part('wren', (figure) => {
+    const dress = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.2, 7), new THREE.MeshStandardMaterial({ color: '#d9962b' }));
+    const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.25, 1), new THREE.MeshStandardMaterial({ color: '#efe3c4' }));
+    dress.position.y = 0.6; head.position.y = 1.45;
+    figure.add(dress, head);
+    figure.position.set(...WREN_AT);
+  });
+  world.creature('badger', badgerBody(), {
+    species: {
+      kind: 'badger', label: 'Honey badger', type: 'beast', aggressive: true, lockable: true,
+      dims: { bodyY: 0.3, bodyHalfLen: 0.35, bodyRadius: 0.2, headRadius: 0.1, legLen: 0.2, feet: [], halfWidth: 0.2 },
+      variants: [{ id: 'grey', label: 'Honey badger', rarity: 'common', weight: 1, scale: [1, 1], hp: 30,
+        mods: { speed: 1, chargeDist: 1, damageTaken: 1, chargeDamage: 0, relentless: false } }],
+      temperament: pursue, senses, abilities: [bite.ability],
+    },
+    strikes: [bite.strike],
+    size: 'small',
+    clips: [nod('idle', 0.1), nod('walk', 0.3), nod('attack', 0.6)],
+    loops: ['idle', 'walk'],
+    material: { family: 'pbr', vertexColours: true },
+  });
+  const hives = new THREE.Object3D();
+  hives.position.set(0, 0, -14);
+  world.scene.add(hives);
+  world.spawnAt('badger-1', hives, { species: 'badger', variant: 'grey', brain: null, strike: null, seed: 1, scale: 1 });
+}, {
+  // 6. The sections `world` has no call for go in through `extend`: the quest rows, the talk, the item and the loot.
+  extend: (shard) => ({
+    ...shard,
+    quests: { ...shard.quests, flags, quests: [quest], triggers: [badgerDead], dialogue: [wren] },
+    targets: { ...shard.targets, talks: [{ id: 'wren', at: [...WREN_AT], radius: 3, label: 'Talk to Wren', dialogue: 'wren' }] },
+    items: { ...shard.items, catalogue: [{ id: 'honeycomb', label: 'Honeycomb', icon: 'shell', travels: true }] },
+    rows: { ...shard.rows, loot: [loot] },
+  }),
+});
+```
+
+- **Wren** is the talk `wren`, standing at her part's feet. The talk's `dialogue` names her tree; `figure` (optional)
+  names a props model that draws her instead of the engine's stand-in. A tree's `start` is the node E opens on first;
+  a node with no choice whose `when` holds just closes and is offered again later.
+- **The flags join everything.** `accept` sets `wren.met`, the quest's `startWhen`; the death trigger sets
+  `wren.badger-dead`, the first step's `done` and the turn-in's `when`; `turn-in` sets `wren.returned`, the last
+  step's `done`. When every step is done the quest raises `wren.done` and pays `onComplete`.
+- **The loot.** A kill rolls every `trophies` table row whose `match.kind` is the dead creature's `kind`, and pays each
+  player who did real damage to it. The item (`honeycomb`) is a `items.catalogue` row, so the pack knows its name and icon.
+- **Prove it** with a walk proof: `talk('wren')`, `choose('accept')`, `fight('badger')`, `talk('wren')`,
+  `choose('turn-in')`, then `expectQuest('honey-badger', 'complete')`. A proof tape names the quest's fact in
+  `requiredFacts: ['wren.paid']` and the loot in `requiredItems: { honeycomb: 1 }`.
 
 ## 2c. Creatures
 
@@ -774,10 +995,11 @@ an existing folder.
 
 #### new-template
 
-`--template` names `sdk` (the Template, the default: a three.js scene module with its gameplay rows) or `scene` (Mossgate Hollow as one three.js scene module:
-`src/generators/world.ts` builds the whole world, and `wildshard watch .` draws each save in a running page). Any other
-name refuses before `new` writes anything. `--template blender` is retired (J341): a shard is TypeScript three.js scene
-source, and Blender makes the `.glb` models it loads (section 2). Leave the flag out or pass `--template sdk` or `scene`.
+`--template` names `scene` (Mossgate Hollow as one three.js scene module, the default: `src/generators/world.ts` builds
+the whole world, and `wildshard watch .` draws each save in a running page). Any other name refuses before `new` writes
+anything. `--template sdk` is retired (J434: the legacy Template is gone) and `--template blender` too (J341): a shard is
+TypeScript three.js scene source, and Blender makes the `.glb` models it loads (section 2). Leave the flag out or pass
+`--template scene`.
 
 #### new-refused
 
