@@ -1,0 +1,10 @@
+{
+  "content": "dc49cefee90a4acae45188b4d7138ac9511e123fffb43c4f3519f27943fb8130",
+  "captured": "2026-11-19T04:44:20.230Z",
+  "base": "http://127.0.0.1:60756",
+  "card": {
+    "card/thumb.jpg": "c904028b37eab5912e8b25b7d4aba730790a44b6029365c061095ed53a2d1fb0",
+    "card/portrait.jpg": "a173adde5e633e96bb5d53dfee4948acac961ac6d24300903c710f7b36ddcca2",
+    "card/landscape.jpg": "5473071d153e2b6af73d942291ee942effcaa07b3249fc963b042e3291bb983d"
+  }
+}
